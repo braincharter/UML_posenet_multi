@@ -2,4 +2,7 @@ Assets/Videos
 Assets/Videos/*
 Temp
 Temp/*
+
 .DS_store
+**/__pycache__/
+/.idea/

@@ -1,6 +1,10 @@
+using System.Collections;
+using System.Collections.Generic;
+
 using Unity.Barracuda;
 using UnityEngine;
 using UnityEngine.Video;
+
 
 namespace Pose.Detection
 {
@@ -44,8 +48,6 @@ namespace Pose.Detection
         private int _videoWidth;
         private RenderTexture videoTexture;
         private RenderTexture inputTexture;
-
-        private float InputImageSizeHalf;
         
         private Model _model;
         private IWorker _worker;
@@ -53,8 +55,11 @@ namespace Pose.Detection
 
         private VNectModel.JointPoint[] jointPoints;
         private const int JointNum = 24;
+        private int JointNum_Squared = JointNum * 2;
+        private int JointNum_Cube = JointNum * 3;
+
         // Estimated 2D keypoint locations in videoTexture and their associated confidence values
-        private float[][] keypointLocations = new float[numKeypoints][];
+        private float[][] keypointLocations = new float[JointNum][];
         
         //Shader Property
         private static readonly int MainTex = Shader.PropertyToID("_MainTex");
@@ -70,7 +75,6 @@ namespace Pose.Detection
         private int HeatMapCol_JointNum;
         private float ImageScale;
         private float InputImageSizeHalf;
-        private float ImageScale;
 
         private int CubeOffsetLinear;
         private int CubeOffsetSquared;
@@ -82,11 +86,7 @@ namespace Pose.Detection
         private Dictionary<string, Tensor> inputs;
         private Tensor[] outputs;
 
-        // Number of joints in 2D image
-        private int numKeypoints_Squared = JointNum * 2;
-    
-        // Number of joints in 3D model
-        private int numKeypoints_Cube = JointNum * 3;
+        private int numKeypoints = JointNum;
 
         #endregion
 
@@ -127,7 +127,7 @@ namespace Pose.Detection
             unit = 1f / (float)HeatMapCol;
             InputImageSizeF = imageHeight;
             InputImageSizeHalf = InputImageSizeF / 2f;
-            ImageScale = InputImageSize / (float)HeatMapCol;// 224f / (float)InputImageSize;
+            ImageScale = InputImageSizeF / (float)HeatMapCol;// 224f / (float)InputImageSize;
 
             inputs = new Dictionary<string, Tensor>() { { inputName_1, null }, { inputName_2, null }, { inputName_3, null }, };
             outputs = new Tensor[4];
@@ -135,13 +135,13 @@ namespace Pose.Detection
             
             //TODO: Create Model from onnx asset and compile it to an object
             // Init model
-            _model = ModelLoader.Load(NNModel, Verbose=true);
+            _model = ModelLoader.Load(NNModel);
             
             //TODO: Add Layers to model
             // ???
 
             //TODO: Create Worker Engine
-             _worker = WorkerFactory.CreateWorker(WorkerType, _model, Verbose);
+             _worker = WorkerFactory.CreateWorker(WorkerType, _model);
 
             // We need to wait 3 frames before really starting, since the model has a "memory"
             // StartCoroutine("WaitLoad");
@@ -155,13 +155,13 @@ namespace Pose.Detection
             Texture2D processedImage = PreprocessTexture();
             
             //TODO: Create Tensor 
-            input = new Tensor(processedImage);
+            Tensor input = new Tensor(processedImage);
 
             if (inputs[inputName_1] == null)
             {
                 inputs[inputName_1] = input;
-                inputs[inputName_2] = new Tensor(input);
-                inputs[inputName_3] = new Tensor(input);
+                inputs[inputName_2] = new Tensor(processedImage);
+                inputs[inputName_3] = new Tensor(processedImage);
                 
                 // Init VNect model for pos detection  (Note: should put in start?)
                 jointPoints = VNectModel.Init();
@@ -179,9 +179,7 @@ namespace Pose.Detection
             //TODO: Execute Engine
             //TODO: Process Results
             StartCoroutine(ExecuteModelAsync());
-            
-            //TODO: Draw Skeleton
-            
+
             //TODO: Clean up tensors and other resources
             Destroy(processedImage);
         }
@@ -204,7 +202,7 @@ namespace Pose.Detection
             heatMap3D = outputs[3].data.Download(outputs[3].shape);
             
             // Release outputs
-            for (var i = 2; i < b_outputs.Length; i++)
+            for (var i = 2; i < outputs.Length; i++)
             {
                 outputs[i].Dispose();
             }
@@ -269,10 +267,7 @@ namespace Pose.Detection
         private void OnDisable()
         {
             //TODO: Release the inference engine
-            _worker.Dispose()
-
-            //Release videoTexture (?)
-            videoTexture.Release();
+            _worker.Dispose();
         }
      
         #region Additional Methods
@@ -357,8 +352,8 @@ namespace Pose.Detection
             Texture2D tempTex = Resize(imageTexture, imageHeight, imageWidth);
             Destroy(imageTexture);
 
-            // TODO: Apply model-specific preprocessing
-            // imageTexture = PreprocessNetwork(tempTex);
+            // TODO: Apply model-specific preprocessing (?) 
+            imageTexture = PreprocessNetwork(tempTex);
             
             Destroy(tempTex);
             return imageTexture;

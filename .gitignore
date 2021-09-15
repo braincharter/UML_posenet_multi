@@ -1,0 +1,5 @@
+Assets/Videos
+Assets/Videos/*
+Temp
+Temp/*
+.DS_store

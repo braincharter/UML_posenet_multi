@@ -20,25 +20,76 @@ namespace Pose.Detection
         [SerializeField] private ComputeShader preprocessingShader;
         
         [Space]
-        [SerializeField] private int imageHeight = 360;
-        [SerializeField] private int imageWidth = 360;
+        [SerializeField] private int imageHeight = 488;
+        [SerializeField] private int imageWidth = 488;
         
         [Space]
         [SerializeField] private GameObject videoQuad;
 
+        [Space]
+        [SerializeField] public float KalmanParamQ;
+        [SerializeField] public float KalmanParamR ;
+
+        public int HeatMapCol;
+
+        public int InputImageSizeF;
+            
+        public NNModel NNModel;
+        public VNectModel VNectModel;
+
+        public WorkerFactory.Type WorkerType = WorkerFactory.Type.Auto;
+        
         #region private
         private int _videoHeight;
         private int _videoWidth;
         private RenderTexture videoTexture;
         private RenderTexture inputTexture;
+
+        private float InputImageSizeHalf;
         
-        private const int numKeypoints = 17;
+        private Model _model;
+        private IWorker _worker;
+        
+
+        private VNectModel.JointPoint[] jointPoints;
+        private const int JointNum = 24;
         // Estimated 2D keypoint locations in videoTexture and their associated confidence values
         private float[][] keypointLocations = new float[numKeypoints][];
         
         //Shader Property
         private static readonly int MainTex = Shader.PropertyToID("_MainTex");
+
+        //Heatmaps/offsets Properties
+        private float[] heatMap2D;
+        private float[] heatMap3D;
+        private float[] offset2D;
+        private float[] offset3D;
+        private float unit;
+        private int HeatMapCol_Squared;
+        private int HeatMapCol_Cube;
+        private int HeatMapCol_JointNum;
+        private float ImageScale;
+        private float InputImageSizeHalf;
+        private float ImageScale;
+
+        private int CubeOffsetLinear;
+        private int CubeOffsetSquared;
+
+        private const string inputName_1 = "input_frame_1";
+        private const string inputName_2 = "input_frame_2";
+        private const string inputName_3 = "input_frame_3";
+
+        private Dictionary<string, Tensor> inputs;
+        private Tensor[] outputs;
+
+        // Number of joints in 2D image
+        private int numKeypoints_Squared = JointNum * 2;
+    
+        // Number of joints in 3D model
+        private int numKeypoints_Cube = JointNum * 3;
+
         #endregion
+
         
         private void Start()
         {
@@ -61,13 +112,40 @@ namespace Pose.Detection
                 mainCamera.transform.position = new Vector3(0, 0, -(_videoWidth / 2));
                 mainCamera.GetComponent<Camera>().orthographicSize = _videoHeight / 2;
             }
+
+            // Initialize 
+            HeatMapCol_Squared = HeatMapCol * HeatMapCol;
+            HeatMapCol_Cube = HeatMapCol * HeatMapCol * HeatMapCol;
+            HeatMapCol_JointNum = HeatMapCol * JointNum;
+            CubeOffsetLinear = HeatMapCol * JointNum_Cube;
+            CubeOffsetSquared = HeatMapCol_Squared * JointNum_Cube;
+
+            heatMap2D = new float[JointNum * HeatMapCol_Squared];
+            offset2D = new float[JointNum * HeatMapCol_Squared * 2];
+            heatMap3D = new float[JointNum * HeatMapCol_Cube];
+            offset3D = new float[JointNum * HeatMapCol_Cube * 3];
+            unit = 1f / (float)HeatMapCol;
+            InputImageSizeF = imageHeight;
+            InputImageSizeHalf = InputImageSizeF / 2f;
+            ImageScale = InputImageSize / (float)HeatMapCol;// 224f / (float)InputImageSize;
+
+            inputs = new Dictionary<string, Tensor>() { { inputName_1, null }, { inputName_2, null }, { inputName_3, null }, };
+            outputs = new Tensor[4];
+
             
             //TODO: Create Model from onnx asset and compile it to an object
+            // Init model
+            _model = ModelLoader.Load(NNModel, Verbose=true);
             
             //TODO: Add Layers to model
-            
+            // ???
+
             //TODO: Create Worker Engine
-            
+             _worker = WorkerFactory.CreateWorker(WorkerType, _model, Verbose);
+
+            // We need to wait 3 frames before really starting, since the model has a "memory"
+            // StartCoroutine("WaitLoad");
+          
         }
 
 
@@ -77,28 +155,126 @@ namespace Pose.Detection
             Texture2D processedImage = PreprocessTexture();
             
             //TODO: Create Tensor 
+            input = new Tensor(processedImage);
+
+            if (inputs[inputName_1] == null)
+            {
+                inputs[inputName_1] = input;
+                inputs[inputName_2] = new Tensor(input);
+                inputs[inputName_3] = new Tensor(input);
+                
+                // Init VNect model for pos detection  (Note: should put in start?)
+                jointPoints = VNectModel.Init();
+ 
+            }
+            else  //update previous frames 
+            {
+                inputs[inputName_3].Dispose();
+
+                inputs[inputName_3] = inputs[inputName_2];
+                inputs[inputName_2] = inputs[inputName_1];
+                inputs[inputName_1] = input;
+            }
             
             //TODO: Execute Engine
-            
             //TODO: Process Results
-            // ProcessResults(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer));
+            StartCoroutine(ExecuteModelAsync());
             
             //TODO: Draw Skeleton
             
             //TODO: Clean up tensors and other resources
-            
             Destroy(processedImage);
+        }
+
+        // Launch as coroutine: function that allows pausing its execution and resuming from the same point after a condition is met
+        // https://gamedevbeginner.com/coroutines-in-unity-when-and-how-to-use-them/
+        private IEnumerator ExecuteModelAsync()
+        {
+            // Create input and Execute model
+            yield return _worker.StartManualSchedule(inputs);
+
+            // Get outputs
+            for (var i = 2; i < _model.outputs.Count; i++)
+            {
+                outputs[i] = _worker.PeekOutput(_model.outputs[i]);
+            }
+
+            // Get data from outputs
+            offset3D = outputs[2].data.Download(outputs[2].shape);
+            heatMap3D = outputs[3].data.Download(outputs[3].shape);
+            
+            // Release outputs
+            for (var i = 2; i < b_outputs.Length; i++)
+            {
+                outputs[i].Dispose();
+            }
+
+            // ProcessResults(engine.PeekOutput(predictionLayer), engine.PeekOutput(offsetsLayer));
+            PredictPose();
+        }
+
+        // Predict positions of each of joints based on network
+        private void PredictPose()
+        {
+            for (var j = 0; j < JointNum; j++)
+            {
+                var maxXIndex = 0;
+                var maxYIndex = 0;
+                var maxZIndex = 0;
+                jointPoints[j].score3D = 0.0f;
+                var jj = j * HeatMapCol;
+                for (var z = 0; z < HeatMapCol; z++)
+                {
+                    var zz = jj + z;
+                    for (var y = 0; y < HeatMapCol; y++)
+                    {
+                        var yy = y * HeatMapCol_Squared * JointNum + zz;
+                        for (var x = 0; x < HeatMapCol; x++)
+                        {
+                            float v = heatMap3D[yy + x * HeatMapCol_JointNum];
+                            if (v > jointPoints[j].score3D)
+                            {
+                                jointPoints[j].score3D = v;
+                                maxXIndex = x;
+                                maxYIndex = y;
+                                maxZIndex = z;
+                            }
+                        }
+                    }
+                }
+            
+                jointPoints[j].Now3D.x = (offset3D[maxYIndex * CubeOffsetSquared + maxXIndex * CubeOffsetLinear + j * HeatMapCol + maxZIndex] + 0.5f + (float)maxXIndex) * ImageScale - InputImageSizeHalf;
+                jointPoints[j].Now3D.y = InputImageSizeHalf - (offset3D[maxYIndex * CubeOffsetSquared + maxXIndex * CubeOffsetLinear + (j + JointNum) * HeatMapCol + maxZIndex] + 0.5f + (float)maxYIndex) * ImageScale;
+                jointPoints[j].Now3D.z = (offset3D[maxYIndex * CubeOffsetSquared + maxXIndex * CubeOffsetLinear + (j + JointNum_Squared) * HeatMapCol + maxZIndex] + 0.5f + (float)(maxZIndex - 14)) * ImageScale;
+            }
+
+            // Calculate hip location
+            var lc = (jointPoints[PositionIndex.rThighBend.Int()].Now3D + jointPoints[PositionIndex.lThighBend.Int()].Now3D) / 2f;
+            jointPoints[PositionIndex.hip.Int()].Now3D = (jointPoints[PositionIndex.abdomenUpper.Int()].Now3D + lc) / 2f;
+
+            // Calculate neck location
+            jointPoints[PositionIndex.neck.Int()].Now3D = (jointPoints[PositionIndex.rShldrBend.Int()].Now3D + jointPoints[PositionIndex.lShldrBend.Int()].Now3D) / 2f;
+
+            // Calculate head location
+            var cEar = (jointPoints[PositionIndex.rEar.Int()].Now3D + jointPoints[PositionIndex.lEar.Int()].Now3D) / 2f;
+            var hv = cEar - jointPoints[PositionIndex.neck.Int()].Now3D;
+            var nhv = Vector3.Normalize(hv);
+            var nv = jointPoints[PositionIndex.Nose.Int()].Now3D - jointPoints[PositionIndex.neck.Int()].Now3D;
+            jointPoints[PositionIndex.head.Int()].Now3D = jointPoints[PositionIndex.neck.Int()].Now3D + nhv * Vector3.Dot(nhv, nv);
+
+            // Calculate spine location
+            jointPoints[PositionIndex.spine.Int()].Now3D = jointPoints[PositionIndex.abdomenUpper.Int()].Now3D;
         }
 
         private void OnDisable()
         {
             //TODO: Release the inference engine
-            
-            //Release videoTexture
+            _worker.Dispose()
+
+            //Release videoTexture (?)
             videoTexture.Release();
         }
-
-        
+     
         #region Additional Methods
         
         private void ProcessResults(Tensor heatmaps, Tensor offsets)

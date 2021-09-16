@@ -36,8 +36,6 @@ namespace Pose.Detection
 
         public int HeatMapCol;
 
-        public int InputImageSizeF;
-            
         public NNModel NNModel;
         public VNectModel VNectModel;
 
@@ -74,8 +72,9 @@ namespace Pose.Detection
         private int HeatMapCol_Cube;
         private int HeatMapCol_JointNum;
         private float ImageScale;
+        private int InputImageSizeF;
         private float InputImageSizeHalf;
-
+ 
         private int CubeOffsetLinear;
         private int CubeOffsetSquared;
 
@@ -84,7 +83,7 @@ namespace Pose.Detection
         private const string inputName_3 = "input_frame_3";
 
         private Dictionary<string, Tensor> inputs;
-        private Tensor[] outputs;
+        private Tensor[] outputs; 
 
         private int numKeypoints = JointNum;
 
@@ -155,13 +154,13 @@ namespace Pose.Detection
             Texture2D processedImage = PreprocessTexture();
             
             //TODO: Create Tensor 
-            Tensor input = new Tensor(processedImage);
+            Tensor input = new Tensor(processedImage, 3);
 
             if (inputs[inputName_1] == null)
             {
                 inputs[inputName_1] = input;
-                inputs[inputName_2] = new Tensor(processedImage);
-                inputs[inputName_3] = new Tensor(processedImage);
+                inputs[inputName_2] = new Tensor(processedImage, 3);
+                inputs[inputName_3] = new Tensor(processedImage, 3);
                 
                 // Init VNect model for pos detection  (Note: should put in start?)
                 jointPoints = VNectModel.Init();

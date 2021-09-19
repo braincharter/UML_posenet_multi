@@ -105,10 +105,7 @@ public class PoseEstimator : MonoBehaviour
     // Stores the input data for the model
     private Tensor input;
 
-    /// <summary>
-    /// Keeps track of the current inference backend, model execution interface, 
-    /// and model type
-    /// </summary>
+    // Keeps track of the current inference backend, model execution interface, and model type
     private struct Engine
     {
         public WorkerFactory.Type workerType;
@@ -142,8 +139,8 @@ public class PoseEstimator : MonoBehaviour
     private string predictionLayer = "heatmap_predictions";
 
     // Stores the current estimated 2D keypoint locations in videoTexture
-    private Utils.Keypoint[][] poses;
-    private Utils.Keypoint[][] previous_poses;
+    private PoseUtils.Keypoint[][] poses;
+    private PoseUtils.Keypoint[][] previous_poses;
 
     // Array of pose skeletons
     private PoseSkeleton[] skeletons;
@@ -167,17 +164,16 @@ public class PoseEstimator : MonoBehaviour
         // Adjust the VideoScreen for the new videoTexture
         videoScreen.localScale = new Vector3(width, height, videoScreen.localScale.z);
         videoScreen.position = new Vector3(width / 2, height / 2, 1);
-    }
 
-    //Resizes and positions the in-game Camera to accommodate the video dimensions
-    private void InitializeCamera()
-    {
         // Get a reference to the Main Camera GameObject
         GameObject mainCamera = GameObject.Find("Main Camera");
+
         // Adjust the camera position to account for updates to the VideoScreen
         mainCamera.transform.position = new Vector3(videoDims.x / 2, videoDims.y / 2, -10f);
+
         // Render objects with no perspective (i.e. 2D)
         mainCamera.GetComponent<Camera>().orthographic = true;
+
         // Adjust the camera size to account for updates to the VideoScreen
         mainCamera.GetComponent<Camera>().orthographicSize = videoDims.y / 2;
     }
@@ -192,7 +188,7 @@ public class PoseEstimator : MonoBehaviour
 
         if ((modelType == ModelType.MobileNet) || (modelType == ModelType.MobileNet))
         {
-            preProcessFunction = Utils.PreprocessMobileNet;
+            preProcessFunction = PoseUtils.PreprocessMobileNet;
             // Compile the model asset into an object oriented representation
             m_RunTimeModel = ModelLoader.Load(mobileNetModelAsset);
             displacementFWDLayer = m_RunTimeModel.outputs[2];
@@ -200,7 +196,7 @@ public class PoseEstimator : MonoBehaviour
         }
         else if (modelType == ModelType.OpenPoseSinglePoseOnly)
         {
-            preProcessFunction = Utils.PreprocessOpenPose;
+            preProcessFunction = PoseUtils.PreprocessOpenPose;
             // Compile the model asset into an object oriented representation
             m_RunTimeModel = ModelLoader.Load(openposeModelAsset);
             displacementFWDLayer = m_RunTimeModel.outputs[3];
@@ -208,7 +204,7 @@ public class PoseEstimator : MonoBehaviour
         }
         else 
         {
-            preProcessFunction = Utils.PreprocessResNet;
+            preProcessFunction = PoseUtils.PreprocessResNet;
             // Compile the model asset into an object oriented representation
             m_RunTimeModel = ModelLoader.Load(resnetModelAsset);
             displacementFWDLayer = m_RunTimeModel.outputs[3];
@@ -220,8 +216,9 @@ public class PoseEstimator : MonoBehaviour
         offsetsLayer = m_RunTimeModel.outputs[1];
 
         // Create a model builder to modify the m_RunTimeModel
-        // (could have modified the model itself instead. Maybe if I have time)
         ModelBuilder modelBuilder = new ModelBuilder(m_RunTimeModel);
+        
+        // Add a layer to emphasis the prediction on the headmap using a sigmoid transfer fonction
         modelBuilder.Sigmoid(predictionLayer, heatmapLayer);
 
         // Validate if backend is supported, otherwise use fallback type.
@@ -246,7 +243,6 @@ public class PoseEstimator : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-
         // Update the videoDims.y
         videoDims.x = (int)videoScreen.GetComponent<VideoPlayer>().width;
         videoDims.y = (int)videoScreen.GetComponent<VideoPlayer>().height;
@@ -256,9 +252,6 @@ public class PoseEstimator : MonoBehaviour
 
         // Initialize the videoScreen
         InitializeVideoScreen(videoDims.x, videoDims.y);
-
-        // Adjust the camera based on the source video dimensions
-        InitializeCamera();
 
         // Adjust the input dimensions to maintain the source aspect ratio
         aspectRatioScale = (float)videoTexture.width / videoTexture.height;
@@ -304,8 +297,7 @@ public class PoseEstimator : MonoBehaviour
         RenderTexture.ReleaseTemporary(result);
     }
 
-    // Calls the appropriate preprocessing function to prepare 
-    // -> (this come from a tutorial)
+    // Calls the appropriate preprocessing based on GPU or CPU
     private void ProcessImage(RenderTexture image)
     {
         if (useGPU)
@@ -353,12 +345,12 @@ public class PoseEstimator : MonoBehaviour
             // Initialize the array of Keypoint arrays
             if (poses == null)
             {
-                //Initialize that damn previous pose point
-                previous_poses = new Utils.Keypoint[1][];
-                previous_poses[0] = new Utils.Keypoint[heatmaps2D.channels];
+                //Initialize that previous pose point
+                previous_poses = new PoseUtils.Keypoint[1][];
+                previous_poses[0] = new PoseUtils.Keypoint[heatmaps2D.channels];
                 for (int c = 0; c < heatmaps2D.channels; c++)
                 {
-                    previous_poses[0][c] = new Utils.Keypoint();
+                    previous_poses[0][c] = new PoseUtils.Keypoint();
                 }
             }
             else
@@ -366,42 +358,39 @@ public class PoseEstimator : MonoBehaviour
                 previous_poses = poses;
             }
 
-            poses = new Utils.Keypoint[1][];
+            poses = new PoseUtils.Keypoint[1][];
 
-            bool reorder = false;
-            
             // OpenPose use a different number of keypoints in a different order
-            if (modelType == ModelType.OpenPoseSinglePoseOnly)
-            {
-                reorder = true;
-            }
+            bool reorder = false;
+            if (modelType == ModelType.OpenPoseSinglePoseOnly) reorder = true;
 
             // Determine the key point locations
-            poses[0] = Utils.DecodeSinglePose(heatmaps2D, offsets2D, stride, previous_poses[0], UseKalmanFiltering, KalmanParamQ, KalmanParamR, reorder);
+            poses[0] = PoseUtils.DecodeSinglePose(heatmaps2D, offsets2D, stride, previous_poses[0], UseKalmanFiltering, KalmanParamQ, KalmanParamR, reorder);
         }
         else
         {
             // Initialize the array of Keypoint arrays
             if (poses == null)
             {
-                //Initialize that damn previous pose point
-                poses = new Utils.Keypoint[multiPoseMaxPoses][];
-                poses[0] = new Utils.Keypoint[heatmaps2D.channels];
-                previous_poses = new Utils.Keypoint[multiPoseMaxPoses][];
-                previous_poses[0] = new Utils.Keypoint[heatmaps2D.channels];
+                //Initialize the matrices that will hold the keypoint
+                poses = new PoseUtils.Keypoint[multiPoseMaxPoses][];
+                poses[0] = new PoseUtils.Keypoint[heatmaps2D.channels];
+                previous_poses = new PoseUtils.Keypoint[multiPoseMaxPoses][];
+                previous_poses[0] = new PoseUtils.Keypoint[heatmaps2D.channels];
                 for (int a = 0; a < multiPoseMaxPoses; a++)
                 {
-                    poses[a] = new Utils.Keypoint[heatmaps2D.channels]; 
-                    previous_poses[a] = new Utils.Keypoint[heatmaps2D.channels]; 
+                    poses[a] = new PoseUtils.Keypoint[heatmaps2D.channels]; 
+                    previous_poses[a] = new PoseUtils.Keypoint[heatmaps2D.channels]; 
                     for (int c = 0; c < heatmaps2D.channels; c++)
                     {
-                        poses[0][c] = new Utils.Keypoint();
-                        previous_poses[0][c] = new Utils.Keypoint();
+                        poses[0][c] = new PoseUtils.Keypoint();
+                        previous_poses[0][c] = new PoseUtils.Keypoint();
                     }
                 }
             }
             else
             {
+                //Update the previous keypoints with the new ones
                 for (int a = 0; a < poses.Length; a++)
                 {
                     for (int c = 0; c < poses[a].Length; c++)
@@ -411,20 +400,20 @@ public class PoseEstimator : MonoBehaviour
                 }
             }
 
-            //Initialize pose point
-            poses = new Utils.Keypoint[multiPoseMaxPoses][];
-            poses[0] = new Utils.Keypoint[heatmaps2D.channels];
+            //Initialize the new poses s
+            poses = new PoseUtils.Keypoint[multiPoseMaxPoses][];
+            poses[0] = new PoseUtils.Keypoint[heatmaps2D.channels];
             for (int a = 0; a < multiPoseMaxPoses; a++)
             {
-                poses[a] = new Utils.Keypoint[heatmaps2D.channels]; //I think it's too much.
+                poses[a] = new PoseUtils.Keypoint[heatmaps2D.channels]; //I think it's too much.
                 for (int c = 0; c < heatmaps2D.channels; c++)
                 {
-                    poses[0][c] = new Utils.Keypoint();
+                    poses[0][c] = new PoseUtils.Keypoint();
                  }
             }
 
             // Determine the key point locations
-            Utils.DecodeMultiplePoses(
+            PoseUtils.DecodeMultiplePoses(
                 heatmaps2D, offsets2D,
                 displacementFWD, displacementBWD,
                 stride: stride, maxPoseDetections: multiPoseMaxPoses,
@@ -444,7 +433,6 @@ public class PoseEstimator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
         // Prevent the input dimensions from going too low for the model
         imageDims.x = Mathf.Max(imageDims.x, 64);
         imageDims.y = Mathf.Max(imageDims.y, 64);

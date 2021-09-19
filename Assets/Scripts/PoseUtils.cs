@@ -5,7 +5,7 @@ using Unity.Barracuda;
 using System;
 using System.Linq;
 
-public class Utils
+public class PoseUtils
 {
     //Index of corresponding keypoint for openpose model compared to resnet50
     //public static int[] openpose_keypoint_idx = {0,14,15,16,17,2,5,3,6,4,7,8,11,9,12,10,13,1,18};

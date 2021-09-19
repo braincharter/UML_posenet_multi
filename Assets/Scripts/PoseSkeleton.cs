@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+//This class purpose is to create the gameobjects forming the skeleton
 public class PoseSkeleton
 {
     // The list of key point GameObjects that make up the pose skeleton
@@ -157,7 +158,7 @@ public class PoseSkeleton
     }
 
     // Update the positions for the key point
-    public void UpdateKeyPointPositions(Utils.Keypoint[] keypoints,
+    public void UpdateKeyPointPositions(PoseUtils.Keypoint[] keypoints,
         float sourceScale, RenderTexture sourceTexture, float minConfidence)
     {
         // Iterate through the key points

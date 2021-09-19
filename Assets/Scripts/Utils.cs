@@ -480,21 +480,5 @@ public class Utils
             }
         }
     }
-
-
-    // Kalman filter estimation
-    public static void KalmanFilter(Keypoint prev, Keypoint cur, Vector2 Now, float kalman_Q, float kalman_R)
-    {
-        cur.K.x = (prev.P.x + kalman_Q) / (prev.P.x + kalman_Q + kalman_R);
-        cur.K.y = (prev.P.y + kalman_Q) / (prev.P.y + kalman_Q + kalman_R);
-        cur.P.x = kalman_R * (prev.P.x + kalman_Q) / (kalman_Q + prev.P.x + kalman_R);
-        cur.P.y = kalman_R * (prev.P.y + kalman_Q) / (kalman_Q + prev.P.y + kalman_R);
-        cur.X.x = prev.position.x ;
-        cur.X.y = prev.position.y ;        
-
-        //Adjust position based on previous position and Kalman estimate
-        cur.position.x = cur.X.x + (Now.x - cur.X.x) * cur.K.x;
-        cur.position.y = cur.X.y + (Now.y - cur.X.y) * cur.K.y;
-    }
 }
 

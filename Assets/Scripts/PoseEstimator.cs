@@ -48,46 +48,46 @@ public class PoseEstimator : MonoBehaviour
     [Tooltip("The OpenPose model (single-pose only)")]
     public NNModel openposeModelAsset;
 
-    [Tooltip("The backend to use when performing inference")]
-    public WorkerFactory.Type workerType = WorkerFactory.Type.Auto;
+    //[Tooltip("The backend to use when performing inference")]
+    //public WorkerFactory.Type workerType = WorkerFactory.Type.Auto;
 
     [Tooltip("The type of pose estimation to be performed")]
     public EstimationType estimationType = EstimationType.SinglePose;
 
     [Tooltip("The maximum number of posees to estimate")]
-    [Range(1, 20)]
-    public int maxPoses = 3;
+    [Range(1, 15)]
+    public int multiPoseMaxPoses = 3;
 
-    [Tooltip("The score threshold for multipose estimation")]
+    [Tooltip("Multi-pose: score threshold")]
     [Range(0, 1.0f)]
-    public float scoreThreshold = 0.25f;
+    public float multiPoseScoreThresh = 0.25f;
 
-    [Tooltip("Non-maximum suppression part distance")]
-    public int nmsRadius = 100;
-
-    [Tooltip("The size of the pose skeleton key points")]
-    public float pointScale = 10f;
-
-    [Tooltip("The width of the pose skeleton lines")]
-    public float lineWidth = 5f;
+    [Tooltip("Multi-pose: non-maximum suppression distance ")]
+    public int multiPoseNmsRadius = 100;
 
     [Tooltip("The minimum confidence level required to display the key point")]
     [Range(0, 100)]
-    public int minConfidence = 30;
+    public int KeyPtMinConfidence = 30;
 
     [Tooltip("Temporal regularization based on probabilistic estimation of movement")]
     public bool UseKalmanFiltering = false;
 
-    [Tooltip("Parameter related to Kalman filter Q (temporal regularization)")]
+    [Tooltip("Multi-pose: Kalman maximum deplacement between frames")]
+    public int multiPoseKalmanMaxDistance = 50;
+
+    [Tooltip("Kalman filter Q (temporal regularization)")]
     [Range(0.001f, 0.5f)]
     public float KalmanParamQ = 0.015f;
 
-    [Tooltip("Parameter related to Kalman filter R (temporal regularization)")]
+    [Tooltip("Kalman filter R (noise in measure)")]
     [Range(0.001f, 0.5f)]
     public float KalmanParamR = 0.015f;
 
     // The dimensions of the current video source
     private Vector2Int videoDims;
+
+    // The backend to use when performing inference (always ComputePrecompiled)
+    private WorkerFactory.Type workerType = WorkerFactory.Type.ComputePrecompiled;
 
     // The source video texture
     private RenderTexture videoTexture;
@@ -149,13 +149,11 @@ public class PoseEstimator : MonoBehaviour
 
     // Array of pose skeletons
     private PoseSkeleton[] skeletons;
+    private float pointScale = 10f;
+    private float lineWidth = 5f;
 
 
-    /// <summary>
-    /// Prepares the videoScreen GameObject to display the chosen video source.
-    /// </summary>
-    /// <param name="width"></param>
-    /// <param name="height"></param>
+    /// Prepares the videoScreen to display the chosen video source.
     private void InitializeVideoScreen(int width, int height)
     {
         // Set the render mode for the video player
@@ -173,9 +171,7 @@ public class PoseEstimator : MonoBehaviour
         videoScreen.position = new Vector3(width / 2, height / 2, 1);
     }
 
-    /// <summary>
-    /// Resizes and positions the in-game Camera to accommodate the video dimensions
-    /// </summary>
+    //Resizes and positions the in-game Camera to accommodate the video dimensions
     private void InitializeCamera()
     {
         // Get a reference to the Main Camera GameObject
@@ -189,10 +185,8 @@ public class PoseEstimator : MonoBehaviour
     }
 
 
-    /// <summary>
-    /// Updates the output layer names based on the selected model architecture
-    /// and initializes the Barracuda inference engine witht the selected model.
-    /// </summary>
+    // Updates the output layer names based on the selected model architecture
+    // and initializes the Barracuda inference engine witht the selected model.
     private void StartEngine()
     {
         // The compiled model used for performing inference
@@ -243,11 +237,11 @@ public class PoseEstimator : MonoBehaviour
     private void DrawSkeletons()
     {
         // Initialize the list of pose skeletons
-        if (estimationType == EstimationType.SinglePose) maxPoses = 1;
-        skeletons = new PoseSkeleton[maxPoses];
+        if (estimationType == EstimationType.SinglePose) multiPoseMaxPoses = 1;
+        skeletons = new PoseSkeleton[multiPoseMaxPoses];
 
         // Populate the list of pose skeletons
-        for (int i = 0; i < maxPoses; i++) skeletons[i] = new PoseSkeleton(pointScale, lineWidth);
+        for (int i = 0; i < multiPoseMaxPoses; i++) skeletons[i] = new PoseSkeleton(pointScale, lineWidth);
     }
 
 
@@ -396,11 +390,11 @@ public class PoseEstimator : MonoBehaviour
             if (poses == null)
             {
                 //Initialize that damn previous pose point
-                poses = new Utils.Keypoint[maxPoses][];
+                poses = new Utils.Keypoint[multiPoseMaxPoses][];
                 poses[0] = new Utils.Keypoint[heatmaps2D.channels];
-                previous_poses = new Utils.Keypoint[maxPoses][];
+                previous_poses = new Utils.Keypoint[multiPoseMaxPoses][];
                 previous_poses[0] = new Utils.Keypoint[heatmaps2D.channels];
-                for (int a = 0; a < maxPoses; a++)
+                for (int a = 0; a < multiPoseMaxPoses; a++)
                 {
                     poses[a] = new Utils.Keypoint[heatmaps2D.channels]; //I think it's too much.
                     previous_poses[a] = new Utils.Keypoint[heatmaps2D.channels]; //I think it's too much.
@@ -423,9 +417,9 @@ public class PoseEstimator : MonoBehaviour
             }
 
             //Initialize that pose point
-            poses = new Utils.Keypoint[maxPoses][];
+            poses = new Utils.Keypoint[multiPoseMaxPoses][];
             poses[0] = new Utils.Keypoint[heatmaps2D.channels];
-            for (int a = 0; a < maxPoses; a++)
+            for (int a = 0; a < multiPoseMaxPoses; a++)
             {
                 poses[a] = new Utils.Keypoint[heatmaps2D.channels]; //I think it's too much.
                 for (int c = 0; c < heatmaps2D.channels; c++)
@@ -438,11 +432,11 @@ public class PoseEstimator : MonoBehaviour
             Utils.DecodeMultiplePoses(
                 heatmaps2D, offsets2D,
                 displacementFWD, displacementBWD,
-                stride: stride, maxPoseDetections: maxPoses,
+                stride: stride, maxPoseDetections: multiPoseMaxPoses,
                 cur_poses: poses,
-                pred: previous_poses, Use_Kalman: UseKalmanFiltering, kalman_Q: KalmanParamQ, kalman_R: KalmanParamR,
-                scoreThreshold: scoreThreshold,
-                nmsRadius: nmsRadius);
+                pred: previous_poses, Use_Kalman: UseKalmanFiltering, kalman_thr: multiPoseKalmanMaxDistance, kalman_Q: KalmanParamQ, kalman_R: KalmanParamR,
+                scoreThreshold: multiPoseScoreThresh,
+                nmsRadius: multiPoseNmsRadius);
 
         }
 
@@ -504,7 +498,7 @@ public class PoseEstimator : MonoBehaviour
         ProcessOutput(engine.worker);
 
         // Reinitialize pose skeletons
-        if (maxPoses != skeletons.Length)
+        if (multiPoseMaxPoses != skeletons.Length)
         {
             foreach (PoseSkeleton skeleton in skeletons)
             {
@@ -529,7 +523,7 @@ public class PoseEstimator : MonoBehaviour
                 skeletons[i].ToggleSkeleton(true);
 
                 // Update the positions for the key point GameObjects
-                skeletons[i].UpdateKeyPointPositions(poses[i], scale, videoTexture, minConfidence);
+                skeletons[i].UpdateKeyPointPositions(poses[i], scale, videoTexture, KeyPtMinConfidence);
                 skeletons[i].UpdateLines();
             }
             else

@@ -388,7 +388,7 @@ public class Utils
         Tensor heatmaps, Tensor offsets,
         Tensor displacementsFwd, Tensor displacementBwd,
         int stride, int maxPoseDetections, Keypoint[][] cur_poses,
-        Keypoint[][] pred, bool Use_Kalman, float kalman_Q, float kalman_R,
+        Keypoint[][] pred, bool Use_Kalman, float kalman_thr, float kalman_Q, float kalman_R,
         float scoreThreshold = 0.5f, int nmsRadius = 20)
     {
 
@@ -464,7 +464,7 @@ public class Utils
 
                 //Adjust position based on previous position and Kalman estimate
                 // prev.position.x is to try to solve the glitching skeletons..
-                if ((Use_Kalman) && (prev.position.x != 0))
+                if ((Use_Kalman) && (prev.position.x != 0) && (Math.Abs(prev.position.x - part.position.x) < kalman_thr))
                 {
                     //Adjust position based on previous position and Kalman estimate
                     part.position.x = part.X.x + (Now.x - part.X.x) * part.K.x;

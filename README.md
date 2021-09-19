@@ -4,7 +4,7 @@
 ## Outline
 UML_skel3D is a ML-based multi-pose estimation made in Unity using barracuda, relying on precomputed models (onnx). Ironically, the 3D portion doesn't work yet, but I felt ambitious when the title was chosen. </br>
 
-![Yoga.png](Assets/ScreenShots/Yoga.png)
+![Yoga.png](Assets/Screenshots/Yoga.png)
 
 The project consists of posenet implementations using currently has 4 working* models:
 - MobileNet

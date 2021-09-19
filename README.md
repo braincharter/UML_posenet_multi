@@ -88,7 +88,10 @@ This should open the other fields to fill:
 
 ## How to use the estimator
 
-# Parameters to set in 'PoseEstimator' game object:
+Set the parameters below, press play, enjoy!
+You can adjust most of the parameters as the video plays.
+
+### Parameters to set in 'PoseEstimator' game object:
 
 For all experiment:
 - Model Type: Choose one of the four models proposed (OpenPose does not support multi-pose)
@@ -106,6 +109,36 @@ When using 'Kalman filtering' (Q and R are codependant but affect the results di
 - Multi-pose Kalman distance: (activated only with multi-pose) It remove the Kalman correction if a movement greater than X pixels was detected (in case the skeleton shift place with another)
 - Kalman Q: Importance of the observation compared to the prediction (the lower it is, the more we rely on the prediction)
 - Kalman R: Covariance of the observation of the keypoint position (the higher it is, the less we trust the measure)
+
+## Write-up/General comments
+
+This is a summary of how the project came to life after 5 days.
+
+### Main idea
+
+I started of with the goal of using resnet34 with 3D heatmap and 3 subsequent frames as the input (the model is included in the project, but unused). I figured that it would be easier to handle it, but the code became a mess. The keypoints order was never constant and I was puzzled with how to handle this inside Unity. Then I took a step back, completed the tutorial from the assignement, and used the code from the tutorial to build up the rest of the project without shortcuts (i.e. start from single 2D pose estimation and build up). This is why I started a new branch from the tutorial, and it later became my master branch (like my cactus at home).
+
+My main difficulty was the limitation in hardware; I could not use my work computer and thus everything was computed on my macos laptop. I was puzzled at first because nothing was working correctly, until I remembered that I have a radeon graphic card (not geforce), and consequently need to stick to the CPU. 
+Now knowing this, I adapted the code to handle the computation on the CPU, and I was surprised that at my first test it worked fine! I kept the GPU portion, of course, with the hope of testing it on a real computer.
+
+My main plan was:
+- Add the multi-pose detection (I adapted the code from the tutorial, which solved most of my problems) -> Here the only thing remaining is adding a "memory" (or Kalman) of the position of a human (not the keypoint). I did not have time to finish this aspect. this would have solved the 'jumping' skeletons in the 'dance' video included.
+- Add other models and allow to change it on the fly for testing (I added OpenPose and lost A LOT of time to understand that the number of keypoints andordering was different).
+- Compute a onnx file from a precomputed model -> the thing I called DeepMobileNet, because it is MobileNet with extra steps.
+- Add a temporal "memory" of some sort to reduce the jittering -> Here comes the Kalman filter. I could have kept more frames in memory and have a more complex filter, but for the prupose of this assignement I think it worked well.
+- Add a mesh on extracted keypoint -> I never did this
+- Add the support for 3D keypoints and resnet34 -> go back to my initial plan!.. but I did not have time to do it.
+
+Sadly, I did not have time to finish the two last points..
+
+If I had more time, I would have explored way more options:
+- Preprocess the frame with the shader to remove noise and optimise the contrast
+- Postprocess the heatmap before adding the sigmoid layer
+- Accumulate heatmaps in memory (like, 8 frames), and perform classic meanshift approaches to have more stability
+- ..or add a small pretrained network the use the 8 heatmaps to produce a "denoised" or more "consistent" one
+- Adjust or Add more contraints on the skeleton; I did not spend a lot of time on this.
+- and of course, i would a like to have trained from scratch a different version of mobilenet with more frames as input.. on a GPU.
+
 
 ## License
 ### Non-commercial use</br>

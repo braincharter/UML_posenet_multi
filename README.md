@@ -1,4 +1,4 @@
-# UML_skel3D
+# Unity ML pose detection sandbox with Mike
 
 
 ## Outline

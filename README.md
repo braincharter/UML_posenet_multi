@@ -33,8 +33,9 @@ https://drive.google.com/file/d/11Ry-VCO-epLli8cgFH_GPjVz6-HqU4xb/view?usp=shari
 
 3. Drag the "PoseEstimation.cs" from "Assets/Script" and drag it to the "PoseEstimator" game object (where it says 'missing script'). </br>
 
-This should open the other fields to fill.
-   
+This should open the other fields to fill
+![PoseEstimator.png](Assets/Screenshots/PoseEstimator.png)
+
 ## Tutorial<br>
 
 ・ Choose Video</br>

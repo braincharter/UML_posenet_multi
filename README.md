@@ -23,19 +23,20 @@ This was made in Unity v.2020.03.18f1</br>
 1. Download/clone the repo locally, install Unity and Barracuda.</br>
 
 2. Download the models from here, and put them in the 'Assets/Models' folder.</br>
+https://drive.google.com/file/d/11Ry-VCO-epLli8cgFH_GPjVz6-HqU4xb/view?usp=sharing
  
 ### Settings in Unity Inspector
 
-1. Drag the "ImRickJames" from the "Scene" folder to the Hierarchy view.</br>
+1. Drag the "ImRickJames" from the ""Assets/Scene" folder to the Hierarchy view.</br>
 
-2. Choose a video from 'Assets/Videos', and drag it the the 'VideoScreen' game object ('Video Player/Video Clip') </br>
-   
-3. Set models</br>
-   Drag the corresponding NNModel you put before in Assets/Scripts/Model/ 
-   and drop it to respective "NN Model" in Gameobject named as "PoseEstimator" in Hierarchy view.
-   
+2. Choose a video from "Assets/Videos", and drag it to the "VideoScreen" game object ('Video Player/Video Clip') </br>
 
+3. Drag the "PoseEstimation.cs" from "Assets/Script" and drag it to the "PoseEstimator" game object (where it says 'missing script'). </br>
+
+This should open the other fields to fill.
+   
 ## Tutorial<br>
+
 ・ Choose Video</br>
    You can choose the target video.</br>
    Put the video you choose in Assets/Video/, and then drag the file and drop it to Video Clip of "Video Player".<br>

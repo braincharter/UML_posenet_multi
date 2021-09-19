@@ -1,4 +1,4 @@
-# Unity ML pose detection sandbox with Mike
+# Unity ML multi-pose detection toolbox
 Made in Unity v.2020.03.18f1</br>
 
 ![Yoga.png](Assets/Screenshots/Yoga.png)

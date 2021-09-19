@@ -10,7 +10,7 @@ public class PoseEstimator : MonoBehaviour
     {
         MobileNet,
         ResNet50,
-        LightMobileNet,
+        DeepMobileNet,
         OpenPoseSinglePoseOnly
     }
 
@@ -42,14 +42,11 @@ public class PoseEstimator : MonoBehaviour
     [Tooltip("The ResNet50 model")]
     public NNModel resnetModelAsset;
 
-    [Tooltip("The LightMobileNet model")]
-    public NNModel lightMobileNetModelAsset;
+    [Tooltip("The DeepMobileNet model")]
+    public NNModel deepMobileNetModelAsset;
 
     [Tooltip("The OpenPose model (single-pose only)")]
     public NNModel openposeModelAsset;
-
-    //[Tooltip("The backend to use when performing inference")]
-    //public WorkerFactory.Type workerType = WorkerFactory.Type.Auto;
 
     [Tooltip("The type of pose estimation to be performed")]
     public EstimationType estimationType = EstimationType.SinglePose;
@@ -67,12 +64,13 @@ public class PoseEstimator : MonoBehaviour
 
     [Tooltip("The minimum confidence level required to display the key point")]
     [Range(0, 100)]
-    public int KeyPtMinConfidence = 30;
+    public int KeyPtMinConfidence = 15;
 
     [Tooltip("Temporal regularization based on probabilistic estimation of movement")]
     public bool UseKalmanFiltering = false;
 
     [Tooltip("Multi-pose: Kalman maximum deplacement between frames")]
+    [Range(0, 300)]
     public int multiPoseKalmanMaxDistance = 50;
 
     [Tooltip("Kalman filter Q (temporal regularization)")]
@@ -383,9 +381,6 @@ public class PoseEstimator : MonoBehaviour
         }
         else
         {
-            // Because I idotly creates the keypoints in that fonction, I need to create the "previous_poses" outside.
-            // Bad design Mike, bad design.
-
             // Initialize the array of Keypoint arrays
             if (poses == null)
             {
@@ -396,8 +391,8 @@ public class PoseEstimator : MonoBehaviour
                 previous_poses[0] = new Utils.Keypoint[heatmaps2D.channels];
                 for (int a = 0; a < multiPoseMaxPoses; a++)
                 {
-                    poses[a] = new Utils.Keypoint[heatmaps2D.channels]; //I think it's too much.
-                    previous_poses[a] = new Utils.Keypoint[heatmaps2D.channels]; //I think it's too much.
+                    poses[a] = new Utils.Keypoint[heatmaps2D.channels]; 
+                    previous_poses[a] = new Utils.Keypoint[heatmaps2D.channels]; 
                     for (int c = 0; c < heatmaps2D.channels; c++)
                     {
                         poses[0][c] = new Utils.Keypoint();
@@ -416,7 +411,7 @@ public class PoseEstimator : MonoBehaviour
                 }
             }
 
-            //Initialize that pose point
+            //Initialize pose point
             poses = new Utils.Keypoint[multiPoseMaxPoses][];
             poses[0] = new Utils.Keypoint[heatmaps2D.channels];
             for (int a = 0; a < multiPoseMaxPoses; a++)

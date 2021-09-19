@@ -12,7 +12,8 @@ The project consists of posenet implementations, currently containing 4 working 
 - DeepMobileNet (more layers added to MobileNet) 
 - OpenPose (works only in single-pose estimation)
 
-DeepMobileNet was computed from a pytorch-based checkpoint from https://awesomeopensource.com/project/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
+DeepMobileNet was computed from a pytorch-based checkpoint: 
+https://awesomeopensource.com/project/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
 The code to generate the DeepMobileNet is in "Assets/Models/pytorch_to_onnx".
 
 There is a post-processing involved to temporarily smooth the predictions using a kalman filter applied on the keypoints to reduce the jitters. This can be tuned-up on the fly.

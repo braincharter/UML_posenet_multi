@@ -4,7 +4,7 @@ Made in Unity v.2020.03.18f1</br>
 ![Yoga.png](Assets/Screenshots/Yoga.png)
 
 ## Outline
-UML_skel3D is a ML-based multi-pose estimation made in Unity using barracuda, relying on precomputed models (onnx). Ironically, the 3D portion doesn't work yet, but I felt ambitious when the title was chosen. </br>
+UML_posenet_multi is a ML-based multi-pose estimation made in Unity using barracuda, relying on precomputed models (onnx). </br>
 
 The project consists of posenet implementations, currently containing 4 working models:
 - MobileNet
@@ -18,7 +18,6 @@ The code to generate the DeepMobileNet is in "Assets/Models/pytorch_to_onnx".
 There is a post-processing involved to temporarily smooth the predictions using a kalman filter applied on the keypoints to reduce the jitters. This can be tuned-up on the fly.
 
 Most models performances could not be evaluated on GPU (only CPU), but should support it. On a good note, it works surprisingly fine on a macbook pro (SSD). </br>
-
 
 ## A few results
 
@@ -57,7 +56,6 @@ https://user-images.githubusercontent.com/35206039/133917488-d35d292c-1ae1-4d86-
 https://user-images.githubusercontent.com/35206039/133916791-2a67e2dd-7b94-413c-99dc-7f801580883b.mov
 
 https://user-images.githubusercontent.com/35206039/133916801-3732e10b-8b4e-44dd-89d0-9702fc975420.mov
-
 
 
 ------------
@@ -108,8 +106,6 @@ When using 'Kalman filtering' (Q and R are codependant but affect the results di
 - Multi-pose Kalman distance: (activated only with multi-pose) It remove the Kalman correction if a movement greater than X pixels was detected (in case the skeleton shift place with another)
 - Kalman Q: Importance of the observation compared to the prediction (the lower it is, the more we rely on the prediction)
 - Kalman R: Covariance of the observation of the keypoint position (the higher it is, the less we trust the measure)
-
-## General comments
 
 ## License
 ### Non-commercial use</br>

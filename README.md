@@ -132,6 +132,8 @@ My main plan was:
 
 Sadly, I did not have time to finish the two last points..
 
+### Other potential ideas
+
 If I had more time, I would have explored way more options:
 - Preprocess the frame with the shader to remove noise and optimize the contrast
 - Postprocess the heatmap before adding the sigmoid layer

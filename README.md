@@ -1,21 +1,41 @@
 # Unity ML pose detection sandbox with Mike
+Made in Unity v.2020.03.18f1</br>
 
+![Yoga.png](Assets/Screenshots/Yoga.png)
 
 ## Outline
 UML_skel3D is a ML-based multi-pose estimation made in Unity using barracuda, relying on precomputed models (onnx). Ironically, the 3D portion doesn't work yet, but I felt ambitious when the title was chosen. </br>
 
-![Yoga.png](Assets/Screenshots/Yoga.png)
-
-The project consists of posenet implementations using currently has 4 working* models:
+The project consists of posenet implementations using currently has 4 working models:
 - MobileNet
 - ResNet50
-- LightMobileNet (less layers)
+- DeepMobileNet (more layers added to MobileNet) -> This model was computed from a pytorch-based checkpoint from https://awesomeopensource.com/project/Daniil-Osokin/lightweight-human-pose-estimation.pytorch
 - OpenPose (works only in single-pose estimation)
+
+There is a post-processing involved to temporarily smooth the predictions using a kalman filter applied on the keypoints to reduce the jitters. This can be tuned-up on the fly.
 
 Most models performance could not be evaluated on GPU (only CPU), but should support it. On a good note, it works surprisingly fine on a macbook pro (SSD). </br>
 
-This was made in Unity v.2020.03.18f1</br>
+The code to generate the DeepMobileNet is in "Assets/Models/pytorch_to_onnx".
 
+
+## A few results
+
+. Kalman effect demonstrated by deactivating or varying the parameters (using MobileNet):
+https://user-images.githubusercontent.com/35206039/133916271-c8a0db4d-2e2f-49c7-aa33-c4707af078e7.mov
+
+. Single-pose (using DeepMobileNet with the Kalman filter activated):
+https://user-images.githubusercontent.com/35206039/133916287-8055c53a-6bea-4d1d-9d3e-a7fff539914e.mov
+
+. Single-pose (using DeepMobileNet with the Kalman filter activated):
+https://user-images.githubusercontent.com/35206039/133916287-8055c53a-6bea-4d1d-9d3e-a7fff539914e.mov
+
+. Multi-pose (DeepMobileNet with the Kalman filter activated):
+https://user-images.githubusercontent.com/35206039/133916526-15ba368d-5775-4b6d-ad89-385bdb3cf348.mp4
+https://user-images.githubusercontent.com/35206039/133916524-7c02ced7-35ca-4d98-8aaa-5796195959ea.mp4
+
+
+------------
 
 ## Install
 ### Download and fill the missing files
@@ -33,33 +53,25 @@ https://drive.google.com/file/d/11Ry-VCO-epLli8cgFH_GPjVz6-HqU4xb/view?usp=shari
 
 3. Drag the "PoseEstimation.cs" from "Assets/Script" and drag it to the "PoseEstimator" game object (where it says 'missing script'). </br>
 
-This should open the other fields to fill
-![PoseEstimator.png](Assets/Screenshots/PoseEstimator.png)
+This should open the other fields to fill:
 
-## Tutorial<br>
+<img src="Assets/Screenshots/PoseEstimator.png" width="500">
 
-・ Choose Video</br>
-   You can choose the target video.</br>
-   Put the video you choose in Assets/Video/, and then drag the file and drop it to Video Clip of "Video Player".<br>
-   ![unity_chooseVideo.PNG](Assets/StreamingAssets/ScreenShots/unity_chooseVideo.PNG)
-   
-・Choose Avatar</br>
-    There are two types of avatar in this Scene.</br>
-    You can change the avatar easily in inspector view.</br>
-    Firstly activate Gameobject named as "Tait" and deactivate "unitychan".</br>
-    Secondly drag the Gameobject and drop it to "V Nect Model" of "BarracudaRunner".</br>
-    ![unity_set_anoter_avater_to_obj.PNG](Assets/StreamingAssets/ScreenShots/unity_set_anoter_avater_to_obj.PNG)</br>
-    
-    *To determin direction of the face of avatar, a gameobject which works as nose has been added in those of avatars.
-     So if you would like to adopt your original avatar, please add the nose referencing the code.
-     
-・Use Web Camera
-   By checking "Use Web Cam", you can change the input images.</br>
-   ![unity_use_web_cam.PNG](Assets/StreamingAssets/ScreenShots/unity_use_web_cam.PNG)</br>
-   
-・Skip On Drop</br>
-   If "Skip On Drop" in Video Player checked, VideoPlayer is allowed to skip frames to catch up with current time.<br>
+4. Fill the missing information to be similar to the screenshot
 
+. Video Screen: Choose Video Screen (duh)
+. PoseNet shader: Choose PreprocessShader
+. Assets: The ONNX files from the "Assets/Models" folder. 
+
+## How to use the estimator
+
+# Parameters to set in 'PoseEstimator' game object:
+
+. Model Type: Choose one of the four models proposed (OpenPose does not support multi-pose)
+. Use GPU: Flag to select if the computation will be made on the GPU or CPU (mainly tested on a macos SSD CPU)
+. ImageDims: How the original images will be resized before feeding it to the model. High means more processing power, but better results. ZThe aspect ratio will be adjusted based on the model automaticallly.
+. Estimation Type: Single pose or Multi-Pose. Multi-Pose with a single target works, but is less reliable (jittery).
+  
 
 ## License
 ### Non-commercial use</br>

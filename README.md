@@ -9,7 +9,7 @@ UML_posenet_multi is a ML-based multi-pose estimation made in Unity using barrac
 The project consists of posenet implementations, currently containing 4 working models:
 - MobileNet
 - ResNet50
-- DeepMobileNet (more layers added to MobileNet) 
+- DeepMobileNet (more layers added to MobileNet)  ->  This one is the best of all four
 - OpenPose (works only in single-pose estimation)
 
 DeepMobileNet was computed from a pytorch-based checkpoint: 
